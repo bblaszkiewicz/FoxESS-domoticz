@@ -55,6 +55,7 @@ class BasePlugin:
         # Pobierz aktualną moc i całkowitą energię z API FoxESS
         current_power = self.get_real_time_data()
         total_energy = self.get_total_energy()
+        Domoticz.Log(total_energy)
 
         # Aktualizacja urządzeń Domoticz
         if current_power is not None:
@@ -109,9 +110,10 @@ class BasePlugin:
         params = {'sn': self.inverter_sn}
         data = self.api_request('get', path, params)  # Zmiana na GET dla poprawności API
 
-        if data and 'data' in data:
+        Domoticz.Log(f"Total energy data: {json.dumps(data)}")
+        if data and 'result' in data:
             Domoticz.Log(f"Total energy data: {json.dumps(data)}")  # Logowanie danych
-            return data['data'].get('total_energy', 0)  # Pobierz wartość 'total_energy'
+            return data['result'].get('cumulative', 0)  # Pobierz wartość 'total_energy'
         return None
 
     def report_query(self):
