@@ -1,0 +1,1 @@
+# FoxESS & Domoticz integration
