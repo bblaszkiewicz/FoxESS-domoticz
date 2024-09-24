@@ -1,8 +1,9 @@
 """
-<plugin key="foxess" name="FoxESS Inverter Plugin" version="0.1.0" author="BBlaszkiewicz">
+<plugin key="foxess" name="FoxESS Inverter Plugin" version="0.1.1" author="BBlaszkiewicz">
     <params>
         <param field="Mode1" label="Inverter Serial Number" width="200px" required="true" default=""/>
         <param field="Mode2" label="API Key" width="300px" required="true" default=""/>
+        <param field="Mode3" label="Check every x minutes" width="40px" default="5" required="true" />
         <param field="Mode6" label="Debug" width="75px">
             <options>
                 <option label="False" value="false" default="true" />
@@ -17,6 +18,7 @@ import json
 import time
 import hashlib
 import requests
+import datetime
 
 class BasePlugin:
     enabled = False
@@ -26,6 +28,8 @@ class BasePlugin:
         self.api_key = None
         self.api_url = 'https://www.foxesscloud.com'
         self.devices_created = False
+        self.pollinterval = 300
+        self.nextpoll = datetime.datetime.now()
 
     def onStart(self):
         Domoticz.Log("FoxESS Plugin Started")
@@ -33,6 +37,7 @@ class BasePlugin:
         # Pobierz wartości wprowadzone w panelu konfiguracyjnym Domoticz
         self.inverter_sn = Parameters["Mode1"]  # Numer seryjny inwertera
         self.api_key = Parameters["Mode2"]  # API key
+        self.pollinterval = int(Parameters["Mode3"]) * 60
 
         if not self.inverter_sn or not self.api_key:
             Domoticz.Error("FoxESS: Brak numeru seryjnego lub klucza API w konfiguracji.")
@@ -40,9 +45,7 @@ class BasePlugin:
 
         # Tworzenie urządzeń w Domoticz dla bieżącej mocy i całkowitej energii
         if 1 not in Devices:
-            Domoticz.Device(Name="Current Power", Unit=1, TypeName="Usage").Create()
-        if 2 not in Devices:
-            Domoticz.Device(Name="Total Energy", Unit=2, TypeName="kWh").Create()
+            Domoticz.Device(Name="Energy", Unit=1, TypeName="kWh").Create()
         self.devices_created = True
 
     def onStop(self):
@@ -51,17 +54,28 @@ class BasePlugin:
     def onHeartbeat(self):
         if not self.devices_created:
             self.onStart()
+            
+        now = datetime.datetime.now()
+        if now < self.nextpoll:
+            Domoticz.Debug(("Awaiting next pool: %s") % str(self.nextpoll))
+            return
+            
+        
+        # Set next pool time
+        self.postponeNextPool(seconds=self.pollinterval)
+        
+        try:
+            # Pobierz aktualną moc i całkowitą energię z API FoxESS
+            current_power = self.get_real_time_data()
+            total_energy = self.get_total_energy()
+            Domoticz.Log(f"power: {current_power}")
+            Domoticz.Log(f"total energy: {total_energy}")
 
-        # Pobierz aktualną moc i całkowitą energię z API FoxESS
-        current_power = self.get_real_time_data()
-        total_energy = self.get_total_energy()
-        Domoticz.Log(total_energy)
-
-        # Aktualizacja urządzeń Domoticz
-        if current_power is not None:
-            Devices[1].Update(0, str(current_power))
-        if total_energy is not None:
-            Devices[2].Update(0, f"{str(current_power)};{str(total_energy)}")
+            # Aktualizacja urządzeń Domoticz
+            if total_energy is not None and current_power is not None:
+                Devices[1].Update(0, f"{str(current_power*1000)};{str(total_energy*1000)}")
+        except:
+            Domoticz.Log("heartbeat fail")
 
     def get_signature(self, path):
         # Generowanie sygnatury zgodnie z wymogami API FoxESS
@@ -96,24 +110,29 @@ class BasePlugin:
             return None
 
     def get_real_time_data(self):
-        path = '/op/v0/device/real/query'
-        params = {'sn': self.inverter_sn, 'variables': ['pvPower']}
-        data = self.api_request('post', path, params)
+        try:
+            path = '/op/v0/device/real/query'
+            params = {'sn': self.inverter_sn, 'variables': ['pvPower']}
+            data = self.api_request('post', path, params)
 
-        if data and 'result' in data:
-            Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
-            Domoticz.Log(data['result'][0].get('datas',0)[0].get('value',0))
-            return data['result'][0].get('value', 0)  # Zwróć bieżącą moc
+            if data and 'result' in data:
+                #Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
+                return data['result'][0].get('datas',0)[0].get('value',0)  # Zwróć bieżącą moc
+        except:
+            Domoticz.Log("get_real_time_data fail")
         return None
 
     def get_total_energy(self):
-        path = '/op/v0/device/generation'
-        params = {'sn': self.inverter_sn}
-        data = self.api_request('get', path, params)  # Zmiana na GET dla poprawności API
+        try:
+            path = '/op/v0/device/generation'
+            params = {'sn': self.inverter_sn}
+            data = self.api_request('get', path, params)  # Zmiana na GET dla poprawności API
 
-        if data and 'result' in data:
-            Domoticz.Log(f"Total energy data: {json.dumps(data)}")  # Logowanie danych
-            return data['result'].get('cumulative', 0)  # Pobierz wartość 'total_energy'
+            if data and 'result' in data:
+                #Domoticz.Log(f"Total energy data: {json.dumps(data)}")  # Logowanie danych
+                return data['result'].get('cumulative', 0)  # Pobierz wartość 'total_energy'
+        except:
+            Domoticz.Log("get_total_energy fail")
         return None
 
     def report_query(self):
@@ -128,6 +147,10 @@ class BasePlugin:
             Domoticz.Log(f"Report data: {json.dumps(response['data'])}")  # Logowanie raportu
         else:
             Domoticz.Error("Failed to retrieve report data")
+    
+    def postponeNextPool(self, seconds=3600):
+        self.nextpoll = (datetime.datetime.now() + datetime.timedelta(seconds=seconds))
+        return self.nextpoll
 
 # Funkcje wymagane przez Domoticz
 def onStart():
