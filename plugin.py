@@ -61,7 +61,7 @@ class BasePlugin:
         if current_power is not None:
             Devices[1].Update(0, str(current_power))
         if total_energy is not None:
-            Devices[2].Update(0, str(total_energy))
+            Devices[2].Update(0, f"{str(current_power)};{str(total_energy)}")
 
     def get_signature(self, path):
         # Generowanie sygnatury zgodnie z wymogami API FoxESS
