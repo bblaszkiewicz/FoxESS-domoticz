@@ -1,5 +1,5 @@
 """
-<plugin key="foxess" name="FoxESS Inverter Plugin" version="1.0.0" author="YourName">
+<plugin key="foxess" name="FoxESS Inverter Plugin" version="0.1.0" author="BBlaszkiewicz">
     <params>
         <param field="Mode1" label="Inverter Serial Number" width="200px" required="true" default=""/>
         <param field="Mode2" label="API Key" width="300px" required="true" default=""/>
@@ -97,12 +97,13 @@ class BasePlugin:
 
     def get_real_time_data(self):
         path = '/op/v0/device/real/query'
-        params = {'sn': self.inverter_sn, 'variables': ['current_power']}
+        params = {'sn': self.inverter_sn, 'variables': ['pvPower']}
         data = self.api_request('post', path, params)
 
-        if data and 'data' in data:
+        if data and 'result' in data:
             Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
-            return data['data'].get('current_power', 0)  # Zwróć bieżącą moc
+            Domoticz.Log(data['result'][0].get('datas',0)[0].get('value',0))
+            return data['result'][0].get('value', 0)  # Zwróć bieżącą moc
         return None
 
     def get_total_energy(self):
@@ -110,7 +111,6 @@ class BasePlugin:
         params = {'sn': self.inverter_sn}
         data = self.api_request('get', path, params)  # Zmiana na GET dla poprawności API
 
-        Domoticz.Log(f"Total energy data: {json.dumps(data)}")
         if data and 'result' in data:
             Domoticz.Log(f"Total energy data: {json.dumps(data)}")  # Logowanie danych
             return data['result'].get('cumulative', 0)  # Pobierz wartość 'total_energy'
