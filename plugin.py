@@ -43,7 +43,7 @@ class BasePlugin:
             Domoticz.Error("FoxESS: Brak numeru seryjnego lub klucza API w konfiguracji.")
             return
 
-        # Tworzenie urządzeń w Domoticz dla bieżącej mocy i całkowitej energii
+        # Tworzenie urządzeń
         if 1 not in Devices:
             Domoticz.Device(Name="Energy", Unit=1, TypeName="kWh").Create()
         self.devices_created = True
@@ -65,7 +65,6 @@ class BasePlugin:
         self.postponeNextPool(seconds=self.pollinterval)
         
         try:
-            # Pobierz aktualną moc i całkowitą energię z API FoxESS
             current_power = self.get_real_time_data()
             total_energy = self.get_total_energy()
             Domoticz.Log(f"power: {current_power}")
@@ -78,23 +77,21 @@ class BasePlugin:
             Domoticz.Log("heartbeat fail")
 
     def get_signature(self, path):
-        # Generowanie sygnatury zgodnie z wymogami API FoxESS
         timestamp = round(time.time() * 1000)
         signature_string = fr"{path}\r\n{self.api_key}\r\n{timestamp}"
         signature = hashlib.md5(signature_string.encode('utf-8')).hexdigest()
 
-        # Zwracamy nagłówki z wymaganymi parametrami
         return {
-            'Content-Type': 'application/json',  # JSON jest wymagany przez API FoxESS
+            'Content-Type': 'application/json', 
             'token': self.api_key,
             'signature': signature,
             'timestamp': str(timestamp),
             'lang': 'en',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'  # Przykładowy User-Agent
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36' 
         }
 
     def api_request(self, method, path, params=None):
-        headers = self.get_signature(path)  # Pobierz poprawne nagłówki
+        headers = self.get_signature(path)
         url = f"{self.api_url}{path}"
 
         try:
@@ -104,7 +101,7 @@ class BasePlugin:
                 response = requests.post(url, json=params, headers=headers, verify=False)
             response.raise_for_status()  # Zgłoś wyjątek w przypadku błędu HTTP
             Domoticz.Log(response.json())
-            return response.json()  # Zwróć odpowiedź JSON
+            return response.json() 
         except Exception as e:
             Domoticz.Error(f"Error communicating with FoxESS API: {str(e)}")
             return None
@@ -117,7 +114,7 @@ class BasePlugin:
 
             if data and 'result' in data:
                 #Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
-                return data['result'][0].get('datas',0)[0].get('value',0)  # Zwróć bieżącą moc
+                return data['result'][0].get('datas',0)[0].get('value',0)
         except:
             Domoticz.Log("get_real_time_data fail")
         return None
@@ -126,11 +123,11 @@ class BasePlugin:
         try:
             path = '/op/v0/device/generation'
             params = {'sn': self.inverter_sn}
-            data = self.api_request('get', path, params)  # Zmiana na GET dla poprawności API
+            data = self.api_request('get', path, params)
 
             if data and 'result' in data:
                 #Domoticz.Log(f"Total energy data: {json.dumps(data)}")  # Logowanie danych
-                return data['result'].get('cumulative', 0)  # Pobierz wartość 'total_energy'
+                return data['result'].get('cumulative', 0) 
         except:
             Domoticz.Log("get_total_energy fail")
         return None
@@ -144,7 +141,7 @@ class BasePlugin:
         }
         response = self.api_request('post', path, request_param)
         if response and 'data' in response:
-            Domoticz.Log(f"Report data: {json.dumps(response['data'])}")  # Logowanie raportu
+            Domoticz.Log(f"Report data: {json.dumps(response['data'])}")
         else:
             Domoticz.Error("Failed to retrieve report data")
     
