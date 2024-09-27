@@ -69,15 +69,7 @@ class BasePlugin:
         self.postponeNextPool(seconds=self.pollinterval)
         
         try:
-            current_power = self.get_real_time_data()
-            total_energy = self.get_total_energy()
-            
-            Domoticz.Log(f"power: {current_power}")
-            Domoticz.Log(f"total energy: {total_energy}")
-
-            # Aktualizacja urządzeń Domoticz
-            if total_energy is not None and current_power is not None:
-                Devices[1].Update(0, f"{str(current_power*1000)};{str(total_energy*1000)}")
+            self.get_real_time_data()
         except:
             Domoticz.Log("heartbeat fail")
 
@@ -114,14 +106,25 @@ class BasePlugin:
     def get_real_time_data(self):
         try:
             path = '/op/v0/device/real/query'
-            params = {'sn': self.inverter_sn, 'variables': ['pvPower', 'ambientTemperation', 'invTemperation']}
+            params = {'sn': self.inverter_sn, 'variables': ['pvPower', 'ambientTemperation', 'invTemperation', 'generation']}
             data = self.api_request('post', path, params)
 
             if data and 'result' in data:
-                Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
-                Devices[2].Update(nValue=0, sValue=str(data['result'][0].get('datas',0)[1].get('value',0)))
-                Devices[3].Update(nValue=0, sValue=str(data['result'][0].get('datas',0)[2].get('value',0)))
-                return data['result'][0].get('datas',0)[0].get('value',0)
+                #Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
+                current_power = data['result'][0].get('datas',0)[0].get('value',0)
+                ambientTemp = data['result'][0].get('datas',0)[1].get('value',0)
+                invTemp = data['result'][0].get('datas',0)[2].get('value',0)
+                generation = data['result'][0].get('datas',0)[3].get('value',0)
+                Domoticz.Log(f"power: {current_power}")
+                Domoticz.Log(f"total energy: {generation}")
+                Domoticz.Log(f"ambient temperature: {ambientTemp}")
+                Domoticz.Log(f"inv temperature: {invTemp}")
+                
+                Devices[1].Update(0, f"{str(current_power*1000)};{str(generation*1000)}")
+                Devices[2].Update(nValue=0, sValue=str(ambientTemp))
+                Devices[3].Update(nValue=0, sValue=str(invTemp))
+                #return data['result'][0].get('datas',0)[0].get('value',0)
+                return None
         except:
             Domoticz.Log("get_real_time_data fail")
         return None
