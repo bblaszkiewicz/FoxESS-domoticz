@@ -46,6 +46,10 @@ class BasePlugin:
         # Tworzenie urządzeń
         if 1 not in Devices:
             Domoticz.Device(Name="Energy", Unit=1, TypeName="kWh").Create()
+        if 2 not in Devices:
+            Domoticz.Device(Name="AmbientTemperature", Unit=2, TypeName="Temperature").Create()
+        if 3 not in Devices:
+            Domoticz.Device(Name="InvTemperature", Unit=3, TypeName="Temperature").Create()
         self.devices_created = True
 
     def onStop(self):
@@ -67,6 +71,7 @@ class BasePlugin:
         try:
             current_power = self.get_real_time_data()
             total_energy = self.get_total_energy()
+            
             Domoticz.Log(f"power: {current_power}")
             Domoticz.Log(f"total energy: {total_energy}")
 
@@ -109,11 +114,13 @@ class BasePlugin:
     def get_real_time_data(self):
         try:
             path = '/op/v0/device/real/query'
-            params = {'sn': self.inverter_sn, 'variables': ['pvPower']}
+            params = {'sn': self.inverter_sn, 'variables': ['pvPower', 'ambientTemperation', 'invTemperation']}
             data = self.api_request('post', path, params)
 
             if data and 'result' in data:
-                #Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
+                Domoticz.Log(f"Real-time data: {json.dumps(data)}")  # Logowanie danych
+                Devices[2].Update(nValue=0, sValue=str(data['result'][0].get('datas',0)[1].get('value',0)))
+                Devices[3].Update(nValue=0, sValue=str(data['result'][0].get('datas',0)[2].get('value',0)))
                 return data['result'][0].get('datas',0)[0].get('value',0)
         except:
             Domoticz.Log("get_real_time_data fail")
