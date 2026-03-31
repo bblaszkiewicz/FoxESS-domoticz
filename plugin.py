@@ -22,12 +22,12 @@ import datetime
 
 
 VARIABLE_MAP = [
-    # zmienne wspólne (ongrid + hybrid)
+    # common variables (ongrid + hybrid)
     ('pvPower',              1, "PV Power",           "Usage",       False),
     ('ambientTemperation',   2, "Ambient Temp",        "Temperature", False),
     ('invTemperation',       3, "Inv Temperature",     "Temperature", False),
     ('generation',           4, "Energy",              "kWh",         False),
-    # zmienne tylko dla hybrydowych (bateria)
+    # variables for hybrid inverters only (battery)
     ('batVolt',              5, "Battery Voltage",     None,          True),   # Type=243, Subtype=8
     ('generationPower',      6, "Generation Power",    "Usage",       True),
     ('gridConsumptionPower', 7, "Grid Consumption",    "Usage",       True),
@@ -59,7 +59,7 @@ class BasePlugin:
         self.pollinterval = int(Parameters["Mode3"]) * 60
 
         if not self.inverter_sn or not self.api_key:
-            Domoticz.Error("FoxESS: Brak numeru seryjnego lub klucza API w konfiguracji.")
+            Domoticz.Error("FoxESS: Missing serial number or API key in configuration.")
             return
 
         self._detect_inverter_type()
@@ -99,8 +99,8 @@ class BasePlugin:
             )
         else:
             Domoticz.Error(
-                "FoxESS: Nie udało się pobrać informacji o urządzeniu. "
-                "Zakładam inwerter ongrid (bez baterii)."
+                "FoxESS: Failed to retrieve device information. "
+                "Assuming on-grid inverter (without battery)."
             )
             self.has_battery = False
             self.battery_detected = True
@@ -115,7 +115,7 @@ class BasePlugin:
                     Domoticz.Device(Name=dev_name, Unit=unit_id, Type=243, Subtype=8).Create()
                 else:
                     Domoticz.Device(Name=dev_name, Unit=unit_id, TypeName=type_name).Create()
-                Domoticz.Log(f"FoxESS: Utworzono urządzenie Unit={unit_id} '{dev_name}'")
+                Domoticz.Log(f"FoxESS: Created device Unit={unit_id} '{dev_name}'")
 
         self.devices_created = True
 
@@ -131,7 +131,7 @@ class BasePlugin:
             data = self.api_request('post', path, params)
 
             if not (data and 'result' in data):
-                Domoticz.Log("FoxESS: Brak danych real-time w odpowiedzi API")
+                Domoticz.Log("FoxESS: No real-time data in API response")
                 return None
 
             datas = data['result'][0].get('datas', [])
@@ -162,32 +162,6 @@ class BasePlugin:
             Domoticz.Log(f"get_real_time_data fail: {e}")
 
         return None
-
-    def get_total_energy(self):
-        try:
-            path = '/op/v0/device/generation'
-            params = {'sn': self.inverter_sn}
-            data = self.api_request('get', path, params)
-
-            if data and 'result' in data:
-                return data['result'].get('cumulative', 0)
-        except Exception as e:
-            Domoticz.Log(f"get_total_energy fail: {e}")
-        return None
-
-    def report_query(self):
-        path = '/op/v0/device/report/query'
-        request_param = {
-            "sn": self.inverter_sn,
-            "year": 2024, "month": 9, 'day': 23, "dimension": "day",
-            "variables": ["generation", "feedin", "gridConsumption",
-                          "chargeEnergyTotal", "dischargeEnergyTotal"]
-        }
-        response = self.api_request('post', path, request_param)
-        if response and 'data' in response:
-            Domoticz.Log(f"Report data: {json.dumps(response['data'])}")
-        else:
-            Domoticz.Error("Failed to retrieve report data")
 
     def get_signature(self, path):
         timestamp = round(time.time() * 1000)
