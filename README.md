@@ -1,6 +1,8 @@
 # FoxESS & Domoticz integration
+![GitHub Release](https://img.shields.io/github/v/release/bblaszkiewicz/FoxESS-domoticz)</br>
+
 ![FOX-logo-425-218-4 (1)](https://github.com/user-attachments/assets/267b9b13-134d-481e-a818-46442d89a967) ![domoticz_logotyp_mini-330x220](https://github.com/user-attachments/assets/6140e90a-1314-438c-84c9-5bc1fdcc595b)</br>
-Plugin for reading data from the FoxESS inverter. Currently, it allows reading the current power and total production. The plugin will be further developed to allow reading more data.
+Plugin for reading data from the FoxESS inverter. Currently, it allows reading the PV power, total production and temperatures. The plugin will be further developed to allow reading more data.
 ## Installation
 Navigate to the plugin directory and install the plugin straight from github
 ```

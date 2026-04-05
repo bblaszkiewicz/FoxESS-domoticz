@@ -1,5 +1,5 @@
 """
-<plugin key="foxess" name="FoxESS Inverter Plugin" version="0.1.1" author="BBlaszkiewicz">
+<plugin key="foxess" name="FoxESS Inverter Plugin" version="0.1.2" author="BBlaszkiewicz">
     <params>
         <param field="Mode1" label="Inverter Serial Number" width="200px" required="true" default=""/>
         <param field="Mode2" label="API Key" width="300px" required="true" default=""/>
