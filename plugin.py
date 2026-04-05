@@ -50,6 +50,12 @@ class BasePlugin:
             Domoticz.Device(Name="AmbientTemperature", Unit=2, TypeName="Temperature").Create()
         if 3 not in Devices:
             Domoticz.Device(Name="InvTemperature", Unit=3, TypeName="Temperature").Create()
+        if 4 not in Devices:
+            Domoticz.Device(Name="AC R Voltage", Unit=4, Type=243, Subtype=8).Create()
+        if 5 not in Devices:
+            Domoticz.Device(Name="AC S Voltage", Unit=5, Type=243, Subtype=8).Create()
+        if 6 not in Devices:
+            Domoticz.Device(Name="AC T Voltage", Unit=6, Type=243, Subtype=8).Create()
         self.devices_created = True
 
     def onStop(self):
@@ -97,7 +103,7 @@ class BasePlugin:
             elif method == 'post':
                 response = requests.post(url, json=params, headers=headers, verify=False)
             response.raise_for_status()  # Zgłoś wyjątek w przypadku błędu HTTP
-            Domoticz.Log(response.json())
+            #Domoticz.Log(response.json())
             return response.json() 
         except Exception as e:
             Domoticz.Error(f"Error communicating with FoxESS API: {str(e)}")
@@ -106,7 +112,7 @@ class BasePlugin:
     def get_real_time_data(self):
         try:
             path = '/op/v0/device/real/query'
-            params = {'sn': self.inverter_sn, 'variables': ['pvPower', 'ambientTemperation', 'invTemperation', 'generation']}
+            params = {'sn': self.inverter_sn, 'variables': ['pvPower', 'ambientTemperation', 'invTemperation', 'generation', 'RVolt', 'SVolt', 'TVolt']}
             data = self.api_request('post', path, params)
 
             if data and 'result' in data:
@@ -115,18 +121,24 @@ class BasePlugin:
                 ambientTemp = data['result'][0].get('datas',0)[1].get('value',0)
                 invTemp = data['result'][0].get('datas',0)[2].get('value',0)
                 generation = data['result'][0].get('datas',0)[3].get('value',0)
-                Domoticz.Log(f"power: {current_power}")
+                rVolt = data['result'][0].get('datas',0)[4].get('value',0)
+                sVolt = data['result'][0].get('datas',0)[5].get('value',0)
+                tVolt = data['result'][0].get('datas',0)[6].get('value',0)
+                #Domoticz.Log(f"power: {current_power}")
                 Domoticz.Log(f"total energy: {generation}")
-                Domoticz.Log(f"ambient temperature: {ambientTemp}")
-                Domoticz.Log(f"inv temperature: {invTemp}")
+                #Domoticz.Log(f"ambient temperature: {ambientTemp}")
+                #Domoticz.Log(f"inv temperature: {invTemp}")
                 
                 Devices[1].Update(0, f"{str(current_power*1000)};{str(generation*1000)}")
                 Devices[2].Update(nValue=0, sValue=str(ambientTemp))
                 Devices[3].Update(nValue=0, sValue=str(invTemp))
+                Devices[4].Update(nValue=0, sValue=str(rVolt))
+                Devices[5].Update(nValue=0, sValue=str(sVolt))
+                Devices[6].Update(nValue=0, sValue=str(tVolt))
                 #return data['result'][0].get('datas',0)[0].get('value',0)
                 return None
         except:
-            Domoticz.Log("get_real_time_data fail")
+            Domoticz.Log(f"get_real_time_data fail: {str(e)}")
         return None
 
     def get_total_energy(self):
